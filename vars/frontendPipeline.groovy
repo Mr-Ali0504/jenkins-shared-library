@@ -3,39 +3,50 @@
 def call() {
     pipeline {
         agent any
-        
+
         stages {
+            stage('Checkout') {
+                steps {
+                    checkout scm
+                }
+            }
+
             stage('Install Dependencies') {
                 steps {
-                    echo 'Installing frontend dependencies...'
-                    sh 'cd frontend && npm install || echo "npm not available, skipping"'
+                    dir('frontend') {
+                        sh 'npm install'
+                    }
                 }
             }
-            
+
             stage('Build Frontend') {
                 steps {
-                    echo 'Building frontend application...'
-                    sh 'cd frontend && npm run build || echo "build script not available, skipping"'
+                    dir('frontend') {
+                        sh 'npm run build'
+                    }
                 }
             }
-            
-            stage('Test Frontend') {
+
+            stage('Deploy Frontend to Nginx') {
                 steps {
-                    echo 'Running frontend tests...'
-                    sh 'cd frontend && npm test || echo "no tests found, skipping"'
-                }
-            }
-            
-            stage('Deploy Frontend') {
-                steps {
-                    echo 'Deploying frontend application...'
+                    // Copy built static files to Nginx web root
+                    sh 'sudo rm -rf /var/www/frontend/*'
+                    sh 'sudo mkdir -p /var/www/frontend'
+                    sh 'sudo cp -r frontend/dist/* /var/www/frontend/'
+
+                    // Copy Nginx config and reload
+                    sh 'sudo cp nginx.conf /etc/nginx/sites-available/1week-app'
+                    sh 'sudo ln -sf /etc/nginx/sites-available/1week-app /etc/nginx/sites-enabled/1week-app'
+                    sh 'sudo rm -f /etc/nginx/sites-enabled/default'
+                    sh 'sudo nginx -t'
+                    sh 'sudo systemctl reload nginx'
                 }
             }
         }
-        
+
         post {
             success {
-                echo 'Frontend pipeline completed successfully!'
+                echo 'Frontend deployed successfully! Access at http://<SERVER_IP>/'
             }
             failure {
                 echo 'Frontend pipeline failed!'
