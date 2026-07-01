@@ -11,6 +11,20 @@ def call() {
                 }
             }
 
+            stage('Gitleaks - Secret Scan') {
+                steps {
+                    sh '''
+                        # Install gitleaks if not present
+                        if ! command -v gitleaks &> /dev/null; then
+                            curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.24.3/gitleaks_8.24.3_linux_x64.tar.gz | sudo tar -xz -C /usr/local/bin gitleaks
+                        fi
+                        
+                        # Scan the repo for leaked secrets
+                        gitleaks detect --source . --verbose --report-format json --report-path gitleaks-report.json || true
+                    '''
+                }
+            }
+
             stage('Install Dependencies') {
                 steps {
                     dir('backend') {
