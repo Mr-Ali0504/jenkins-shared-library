@@ -22,7 +22,7 @@ def call() {
             stage('Test Backend') {
                 steps {
                     dir('backend') {
-                        sh 'npm test || echo "Tests completed"'
+                        sh 'npx jest --coverage || echo "Tests completed"'
                     }
                 }
             }
