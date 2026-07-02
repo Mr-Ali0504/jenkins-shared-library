@@ -41,6 +41,31 @@ def call() {
                 }
             }
 
+            stage('Docker Build - Frontend') {
+                steps {
+                    sh 'docker build -t 1week-frontend:${BUILD_NUMBER} ./frontend'
+                    echo "Frontend image built: 1week-frontend:${BUILD_NUMBER}"
+                }
+            }
+
+            stage('Trivy - Image Scan') {
+                steps {
+                    sh '''
+                        # Install Trivy if not present
+                        if ! command -v trivy &> /dev/null; then
+                            curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin
+                        fi
+
+                        # Scan the Docker image for vulnerabilities
+                        echo "=== Scanning 1week-frontend:${BUILD_NUMBER} ==="
+                        trivy image --severity HIGH,CRITICAL --format table 1week-frontend:${BUILD_NUMBER} || true
+
+                        # Generate JSON report for archiving
+                        trivy image --severity HIGH,CRITICAL --format json --output trivy-frontend-report.json 1week-frontend:${BUILD_NUMBER} || true
+                    '''
+                }
+            }
+
             stage('Deploy Frontend to Nginx') {
                 steps {
                     // Copy built static files to Nginx web root
