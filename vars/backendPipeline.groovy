@@ -41,6 +41,34 @@ def call() {
                 }
             }
 
+            stage('SonarQube - Code Analysis') {
+                steps {
+                    script {
+                        // Fetch SonarQube token from AWS Secrets Manager
+                        env.SONAR_TOKEN = sh(
+                            script: 'aws secretsmanager get-secret-value --secret-id sonarqube/token --query SecretString --output text --region us-east-1',
+                            returnStdout: true
+                        ).trim()
+                    }
+                    dir('backend') {
+                        sh '''
+                            # Install sonar-scanner if not present
+                            if ! command -v sonar-scanner &> /dev/null; then
+                                curl -sSLo /tmp/sonar-scanner.zip https://binaries.sonarsource.com/Distribution/sonar-scanner-cli/sonar-scanner-cli-6.2.1.4610-linux-x64.zip
+                                sudo unzip -qo /tmp/sonar-scanner.zip -d /opt/
+                                sudo mv /opt/sonar-scanner-*-linux-x64 /opt/sonar-scanner
+                                sudo ln -sf /opt/sonar-scanner/bin/sonar-scanner /usr/local/bin/sonar-scanner
+                                rm -f /tmp/sonar-scanner.zip
+                            fi
+
+                            sonar-scanner \
+                                -Dsonar.host.url=http://localhost:9000 \
+                                -Dsonar.token=${SONAR_TOKEN} || true
+                        '''
+                    }
+                }
+            }
+
             stage('Docker Build - Backend') {
                 steps {
                     sh 'docker build -t 1week-backend:${BUILD_NUMBER} ./backend'
